@@ -82,7 +82,7 @@ cdd() {
     done
 
     local dir
-    dir=$(cat "$HOME/.local/fzf_cache/dirs.txt" | fzf --border-label='   Search Directories ')
+    dir=$(fzf --border-label='   Search Directories ' < "$HOME/.local/fzf_cache/dirs.txt")
     local full_dir_path="$HOME/$dir"
 
     if [[ -d "$full_dir_path" ]]; then
@@ -239,8 +239,6 @@ run() {
 
 bashrc() {
     local file="$HOME/.bashrc"
-    local _pwd
-    _pwd="$(pwd)"
 
     case "$1" in
         -v)
@@ -271,6 +269,8 @@ chtsh() {
 gem() {
     local temp_file
     temp_file=$(mktemp)
+    trap 'rm -rf "$temp_file"' EXIT
+
     gemini_beta "$@" > "$temp_file"
     batcat "$temp_file"
     cat "$temp_file"
@@ -289,13 +289,19 @@ compress() {
         return 1
     fi
 
-    if file --mime-type -b "$input_file" | grep -q "^video/"; then
-        local output="compressed_$input_file"
-        ffmpeg -i "$input_file" -vcodec libx265 -crf 28 "$output"
-    else
+    local mime_type
+    mime_type="$(file --mime-type -b "$input_file")"
+
+    if [[ "$mime_type" != video/* ]]; then
         echo "Error: File $input_file is not of mime-type video/*" >&2
         return 1
     fi
+
+    local dir filename
+    dir="$(dirname "$input_file")"
+    filename="$(basename "$input_file")"
+
+    ffmpeg -i "$input_file" -vcodec libx265 -crf 28 "$dir/compressed_$filename"
 }
 
 video_length() {
