@@ -12,32 +12,12 @@ mcd() {
     fi
 
     if mkdir "$dir"; then
-        cd "$dir"
+        cd "$dir" || return
     fi
 }
 
 cd() {
     builtin cd "$@" && ls
-}
-
-# select multiple files and delete them together
-rm() {
-    # if -m flag is passed
-    if [[ "$1" == "-m" ]]; then
-        # remove the flag from args
-        shift
-        # use fzf to select multiple files
-        local files
-        files=$(fzf -m) || return  # exit if nothing selected
-
-        # confirm and remove selected files
-        echo "Deleting:"
-        echo "$files"
-        command rm "$@" $files
-    else
-        # fallback to normal rm
-        command rm "$@"
-    fi
 }
 
 # Function to get the current Git branch and status. using it to modify the shell prompt
@@ -57,42 +37,16 @@ parse_git_branch() {
 }
 
 yt() {
-    local search_query=$(echo $1 | tr " " +) # replace all white space with +
-    local url="https://www.youtube.com/results?search_query=$search_query"
-    echo $url
-    xdg-open $url # opens the url in the browser
-}
+    local url="https://www.youtube.com/"
 
-findfile() {
-    local selected_file
-
-    selected_file=$(find ${1:-$HOME} -type f \
-        -not -regex '.*/\(node_modules\|.local\|.cache\|.git\)/.*' -printf "%P\n" | \
-        fzf --preview='batcat --paging=never \
-        --color=always --style=numbers \
-        --line-range=:500 $HOME/{}'\
-    )
-
-    if [ -n "$selected_file" ]; then
-        echo "$HOME/$selected_file"
+    if [[ "$#" -gt 0 ]]; then
+        local args="$*"
+        local search_query="${args// /+}" # replace all white space with +
+        url="https://www.youtube.com/results?search_query=$search_query"
     fi
-}
 
-finddir() {
-  local selected_dir
-  selected_dir=$(find ${1:-$HOME} -type d -not -regex '.*/\(node_modules\|.local\|.cache\|.git\)/.*' -printf '%P\n' | fzf)
-  if [ -n "$selected_dir" ]; then
-    echo "$HOME/$selected_dir"
-  fi
-}
-
-fat() {
-    local selected_file
-    selected_file=$(findfile $1)
-
-    if [ -n $selected_file ]; then
-        bat $selected_file
-    fi
+    echo "$url"
+    xdg-open "$url"
 }
 
 cddr() {
@@ -103,45 +57,43 @@ cddr() {
 }
 
 ignore() {
-    local script_dir="$(command cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    bash "$script_dir/scripts/ignore" $*
+    if [[ -z "$MY_CONFIG_PATH" ]]; then
+        echo "ERROR: MY_CONFIG_PATH variable is not defined" >&2
+        return 1
+    fi
+
+    bash "$MY_CONFIG_PATH/scripts/ignore" "$@"
 }
 
 cdd() {
+    local open_in_editor=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--open)
+                open_in_editor=true
+                shift
+                ;;
+            -*)
+                echo "Unknow flag $1"
+                return 1
+                ;;
+        esac
+    done
+
     local dir
     dir=$(cat "$HOME/.local/fzf_cache/dirs.txt" | fzf --border-label='   Search Directories ')
+    local full_dir_path="$HOME/$dir"
 
-    if [[ -n "$dir" ]]; then
-        cd "$HOME/$dir" || exit
+    if [[ -d "$full_dir_path" ]]; then
+        if $open_in_editor; then
+            nvim "$full_dir_path"
+        else
+            cd "$full_dir_path" || return 1
+        fi
     else
-        echo "No directory selected."
+        echo "No valid directory selected."
     fi
-}
-
-mkdir() {
-    # makes sure mkdir ran without error before appending the dir
-    if /bin/mkdir "$@" ; then
-        local curr_path
-        curr_path=$(pwd)
-
-        local dir_name
-        dir_name="$1"
-
-        echo "$curr_path/$dir_name" >> "$HOME/.local/fzf_cache/dirs.txt"
-    fi
-}
-
-gitadd() {
-    local files
-    # files="$(git status -s | fzf -m | awk '{print $2}' | tr '\n' ' ')"
-    files="$(git diff --name-only | fzf -m | tr '\n' ' ')"
-
-    if [ -z "$files" ]; then
-        echo "Please select at least one file"
-        return
-    fi
-
-    git add $files && git status -s
 }
 
 mdpdf() {
@@ -198,36 +150,44 @@ mdpdf() {
     fi
 }
 
-copy() {
-    local FILE="$1"
+clone() {
+    local repo_name
+    repo_name="$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | fzf)"
 
-    # If no file provided, show usage
-    if [[ -z "$FILE" ]]; then
-        echo "Usage: copy <file>"
-        return
-    fi
-
-    # Check if file exists
-    if [[ ! -f "$FILE" ]]; then
-        echo "File not found: $FILE"
-        return
-    fi
-
-    printf "\033]52;c;$(cat $FILE | base64)\a"
+    [[ -z "$repo_name" ]] && return
+    gh repo clone "$repo_name"
 }
 
 repo() {
-    local repo_name=$(gh repo list | awk '{print $1}' | fzf)
-    [[ -z "$repo_name" ]] && return
-    xdg-open "https://github.com/$repo_name"
+    local open_current=$1
+
+    if [[ "$open_current" == "-c" || "$open_current" == "--current" ]]; then
+        local url
+        url=$(git remote get-url origin 2> /dev/null)
+
+        if [[ -z "$url" ]]; then
+            echo "Error: no origin found for working dir"
+            return 1
+        fi
+
+        xdg-open "$url"
+    else
+        local repo_name
+        repo_name="$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | fzf)"
+
+        [[ -z "$repo_name" ]] && return
+        xdg-open "https://github.com/$repo_name"
+    fi
 }
 
 run() {
-    local save_dir="$HOME/.local/my_dir"
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+    local save_dir="$cache_dir/my_dir"
     local save_file="$save_dir/my_variables.sh"
 
     # 1. Load saved state if it exists so -p works in new sessions
     if [[ -f "$save_file" ]]; then
+        # shellcheck source=/dev/null
         source "$save_file"
     fi
 
@@ -244,7 +204,7 @@ run() {
         "")
             # 2. Check for fd or fd
             local fd_cmd
-            fd_cmd=$(command -v fd || command -v fd)
+            fd_cmd=$(command -v fd || command -v fdfind)
 
             if [[ -z "$fd_cmd" ]]; then
                 echo "Error: fd or fd is not installed."
@@ -265,6 +225,7 @@ run() {
             abs_path=$(realpath "$file")
 
             echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
+            # shellcheck source=/dev/null
             source "$save_file"
 
             g++ "$abs_path" && ./a.out && rm a.out
@@ -278,11 +239,12 @@ run() {
 
 bashrc() {
     local file="$HOME/.bashrc"
-    local _pwd="$(pwd)"
+    local _pwd
+    _pwd="$(pwd)"
 
     case "$1" in
         -v)
-            nvim -R $file
+            nvim -R "$file"
             ;;
         -o)
             cat "$file"
@@ -303,21 +265,15 @@ bashrc() {
 }
 
 chtsh() {
-    curl cht.sh/$1 | batcat
-}
-
-clone() {
-    local repo_name=$(gh repo list | awk '{print $1}' | fzf)
-    [[ -z "$repo_name" ]] && return
-    gh repo clone $repo_name
+    curl "cht.sh/$1" | batcat
 }
 
 gem() {
-    local temp_file=$(mktemp)
-    gemini $@ > $temp_file
+    local temp_file
+    temp_file=$(mktemp)
+    gemini_beta "$@" > "$temp_file"
     batcat "$temp_file"
-    cat $temp_file
-    rm "$temp_file"
+    cat "$temp_file"
 }
 
 compress() {
@@ -340,4 +296,30 @@ compress() {
         echo "Error: File $input_file is not of mime-type video/*" >&2
         return 1
     fi
+}
+
+video_length() {
+    local vid="$1"
+
+    if [[ ! -f "$vid" ]]; then
+        echo "Error: file '$vid' is not a valid file path" >&2
+        return 1
+    fi
+
+    local mime_type
+    mime_type="$(file --mime-type -b "$vid")"
+    if [[ "$mime_type" != video/* ]]; then
+        echo "Error: file '$vid' is not a valid video file" >&2
+        return 1
+    fi
+
+    local duration
+    duration="$(ffprobe -v error -show_entries format=duration -sexagesimal -of default=noprint_wrappers=1:nokey=1 "$vid")"
+
+    if [[ -z "$duration" ]]; then
+        echo "Error: Could not extract duration" >&2
+        return 1
+    fi
+
+    echo "${duration%.*}"
 }
