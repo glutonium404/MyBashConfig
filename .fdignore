@@ -1,8 +1,0 @@
-/home/glutonium/.shell_custom_config/scripts/a/b/
-/home/glutonium/.shell_custom_config/scripts/a/c/*
-/home/glutonium/.shell_custom_config/scripts/a/d/*
-!/home/glutonium/.shell_custom_config/scripts/a/d/y/
-!/home/glutonium/.shell_custom_config/scripts/a/d/x/
-/home/glutonium/.shell_custom_config/scripts/a/d/x/*
-!/home/glutonium/.shell_custom_config/scripts/a/d/x/p/
-/home/glutonium/.shell_custom_config/scripts/a/e/

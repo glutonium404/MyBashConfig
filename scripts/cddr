@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+proceed=true
+
+CDDR_CACHE_DIR_FILE_PATH=
+CDDR_CACHE_BASE_DIRECTORY=
+
+if [[ ! -d "$cache_dir" ]]; then
+    echo "cache dir [$cache_dir] does not exist"
+    read -r -p "Do you want to create the directory? [Y/n]: " response
+    response=${response:-y}
+
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        mkdir "$cache_dir" || return 1
+    else
+        echo "Aborted"
+        proceed=false
+    fi
+fi
+
+if [[ "$proceed" = true ]]; then
+    dir_name="cddr_cache"
+    file_name="cddr_dirs.txt"
+    full_path="$cache_dir/$dir_name"
+
+    CDDR_CACHE_DIR_FILE_PATH="$full_path/$file_name"
+    CDDR_CACHE_BASE_DIRECTORY="$HOME"
+
+    if [[ ! -d "$full_path" ]]; then
+        mkdir "$full_path" || return 1
+    fi
+fi
+
+
+cddr() {
+    if [[ ! -d "$CDDR_CACHE_BASE_DIRECTORY" ]]; then
+        echo "WARNING: CDDR_CACHE_BASE_DIRECTORY variable is invalid"
+        echo "Defaulting to $HOME"
+        CDDR_CACHE_BASE_DIRECTORY="$HOME"
+    fi
+
+    if [[ ! -f "$CDDR_CACHE_DIR_FILE_PATH" ]]; then
+        echo "ERROR: file path CDDR_CACHE_DIR_FILE_PATH : [$CDDR_CACHE_DIR_FILE_PATH] is invalid" >&2
+        return 1
+    fi
+
+    if ! command -v fd &>/dev/null; then
+        echo "ERROR: command fd was not found. try running sudo apt install fd-find" >&2
+        return 1
+    fi
+
+    fd -t d -L --hidden --max-depth 20 --base-directory "$CDDR_CACHE_BASE_DIRECTORY" > "$CDDR_CACHE_DIR_FILE_PATH"
+}
+
+cdd() {
+    local open_in_editor=false
+
+    if [[ ! -f "$CDDR_CACHE_DIR_FILE_PATH" ]]; then
+        echo "ERROR: CDDR_CACHE_DIR_FILE_PATH : [$CDDR_CACHE_DIR_FILE_PATH] is not a valid file path" >&2
+        return 1
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--open)
+                open_in_editor=true
+                shift
+                ;;
+            -*)
+                echo "Unknow flag $1"
+                return 1
+                ;;
+        esac
+    done
+
+    local selected_dir
+    selected_dir=$(fzf \
+        --border-label='   Search Directories ' \
+        --preview "ls -C -F -1a --color=always $CDDR_CACHE_BASE_DIRECTORY/{} | tail -n +3" \
+        --preview-window='right:50%:wrap' \
+        < "$CDDR_CACHE_DIR_FILE_PATH")
+
+    if [[ -z "$selected_dir" ]]; then
+        echo "No directory selected."
+        return
+    fi
+
+    local full_dir_path="$CDDR_CACHE_BASE_DIRECTORY/$selected_dir"
+
+    if [[ ! -d "$full_dir_path" ]]; then
+        echo "Error: Invalid directory path \"$full_dir_path\"" >&2
+        return 1
+    fi
+
+    cd "$full_dir_path" || return 1
+
+    if $open_in_editor; then
+        nvim "$full_dir_path"
+    fi
+}

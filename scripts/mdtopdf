@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+view=false
+style=false
+
+# check if -v or --view flag is passed or -s or --style flag is passed
+while [[ "$1" != "" ]]; do
+    case $1 in
+        -v | --view )    view=true
+            ;;
+        -s | --style )   style=true
+            ;;
+        * )
+            echo "Usage: mdpdf [-v|--view] [-s|--style]"
+            return
+    esac
+    shift
+done
+
+md_files=
+md_files=$(fd -e md --maxdepth 1) || return
+
+if [[ -z "$md_files" ]]; then
+    echo "No markdown files found."
+    return
+fi
+
+# check if md_files contain only one file
+file=
+if [[ $(echo "$md_files" | wc -l) -eq 1 ]]; then
+    file="$md_files"
+else
+    file=$(echo "$md_files" | fzf --prompt="Select a markdown file: ") || return
+fi
+
+fileNameWithoutExt="${file%.*}"
+
+if $style; then
+    css_file=
+    css_file=$(find . -type f -name "style.css" --maxdepth 1)
+
+    if [[ -z "$css_file" ]]; then
+        css_file=$(fd . -e css --maxdepth 1 | fzf --prompt="Select a CSS file: ") || return
+    fi
+
+    pandoc --pdf-engine=wkhtmltopdf "$file" -o "${fileNameWithoutExt}.pdf" -c "$css_file"
+else
+    pandoc --pdf-engine=wkhtmltopdf "$file" -o "${fileNameWithoutExt}.pdf"
+fi
+
+if $view; then
+    echo "Opening ${fileNameWithoutExt}.pdf..."
+    xdg-open "${fileNameWithoutExt}.pdf"
+fi

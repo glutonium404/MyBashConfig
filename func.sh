@@ -12,28 +12,14 @@ mcd() {
     fi
 
     if mkdir "$dir"; then
-        cd "$dir" || return
+        cd "$dir" || return 1
+    else
+        echo "Error: something went wrong" >&2
     fi
 }
 
 cd() {
     builtin cd "$@" && ls
-}
-
-# Function to get the current Git branch and status. using it to modify the shell prompt
-parse_git_branch() {
-    # Get the current branch name
-    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    if [ -n "$branch" ]; then
-        # Check for uncommitted changes
-        if [ -n "$(git status --porcelain)" ]; then
-            # Uncommitted changes detected
-            printf "\001\e[0m\e[1;91m\002(%s)\001\e[0m\002 " "$branch"
-        else
-            # Clean working tree
-            printf "\001\e[0m\e[1;92m\002(%s)\001\e[0m\002 " "$branch"
-        fi
-    fi
 }
 
 yt() {
@@ -47,137 +33,6 @@ yt() {
 
     echo "$url"
     xdg-open "$url"
-}
-
-cddr() {
-    fd -t d -L --hidden \
-        --max-depth 20 \
-        --base-directory "$HOME" \
-        > "$HOME/.local/fzf_cache/dirs.txt"
-}
-
-ignore() {
-    if [[ -z "$MY_CONFIG_PATH" ]]; then
-        echo "ERROR: MY_CONFIG_PATH variable is not defined" >&2
-        return 1
-    fi
-
-    bash "$MY_CONFIG_PATH/scripts/ignore" "$@"
-}
-
-cdd() {
-    local open_in_editor=false
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -o|--open)
-                open_in_editor=true
-                shift
-                ;;
-            -*)
-                echo "Unknow flag $1"
-                return 1
-                ;;
-        esac
-    done
-
-    local dir
-    dir=$(fzf --border-label='   Search Directories ' < "$HOME/.local/fzf_cache/dirs.txt")
-    local full_dir_path="$HOME/$dir"
-
-    if [[ -d "$full_dir_path" ]]; then
-        if $open_in_editor; then
-            nvim "$full_dir_path"
-        else
-            cd "$full_dir_path" || return 1
-        fi
-    else
-        echo "No valid directory selected."
-    fi
-}
-
-mdpdf() {
-    local view=false
-    local style=false
-
-    # check if -v or --view flag is passed or -s or --style flag is passed
-    while [[ "$1" != "" ]]; do
-        case $1 in
-            -v | --view )    view=true
-                ;;
-            -s | --style )   style=true
-                ;;
-            * )              echo "Usage: mdpdf [-v|--view] [-s|--style]"
-                return
-        esac
-        shift
-    done
-
-    local md_files
-    md_files=$(fd -e md --maxdepth 1) || return
-
-    if [[ -z "$md_files" ]]; then
-        echo "No markdown files found."
-        return
-    fi
-
-    # check if md_files contain only one file
-    local file
-    if [[ $(echo "$md_files" | wc -l) -eq 1 ]]; then
-        file="$md_files"
-    else
-        file=$(echo "$md_files" | fzf --prompt="Select a markdown file: ") || return
-    fi
-
-    local fileNameWithoutExt="${file%.*}"
-
-    if $style; then
-        local css_file
-        css_file=$(find . -type f -name "style.css" --maxdepth 1)
-
-        if [[ -z "$css_file" ]]; then
-            css_file=$(fd . -e css --maxdepth 1 | fzf --prompt="Select a CSS file: ") || return
-        fi
-
-        pandoc --pdf-engine=wkhtmltopdf "$file" -o "${fileNameWithoutExt}.pdf" -c "$css_file"
-    else
-        pandoc --pdf-engine=wkhtmltopdf "$file" -o "${fileNameWithoutExt}.pdf"
-    fi
-
-    if $view; then
-        echo "Opening ${fileNameWithoutExt}.pdf..."
-        xdg-open "${fileNameWithoutExt}.pdf"
-    fi
-}
-
-clone() {
-    local repo_name
-    repo_name="$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | fzf)"
-
-    [[ -z "$repo_name" ]] && return
-    gh repo clone "$repo_name"
-}
-
-repo() {
-    local open_current=$1
-
-    if [[ "$open_current" == "-c" || "$open_current" == "--current" ]]; then
-        local url
-        url=$(git remote get-url origin 2> /dev/null)
-
-        if [[ -z "$url" ]]; then
-            echo "Error: no origin found for working dir"
-            return 1
-        fi
-
-        xdg-open "$url"
-    else
-        local repo_name
-        repo_name="$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | fzf)"
-
-        [[ -z "$repo_name" ]] && return
-        xdg-open "https://github.com/$repo_name"
-    fi
 }
 
 run() {
@@ -198,6 +53,7 @@ run() {
             elif [[ ! -f "$PREVIOUSLY_RAN_CPP" ]]; then
                 echo "Previous file no longer exists: $PREVIOUSLY_RAN_CPP"
             else
+                echo -e "Running: $PREVIOUSLY_RAN_CPP\n\n"
                 g++ "$PREVIOUSLY_RAN_CPP" && ./a.out && rm a.out
             fi
             ;;
@@ -228,6 +84,7 @@ run() {
             # shellcheck source=/dev/null
             source "$save_file"
 
+            echo -e "Running: $abs_path\n\n"
             g++ "$abs_path" && ./a.out && rm a.out
             ;;
         *)
@@ -239,6 +96,11 @@ run() {
 
 bashrc() {
     local file="$HOME/.bashrc"
+
+    if [[ ! -f "$file" ]]; then
+        echo "Error: path \"$file\" does not point to a valid .bashrc file" >&2
+        return 1
+    fi
 
     case "$1" in
         -v)
@@ -283,6 +145,7 @@ compress() {
     fi
 
     local input_file="$1"
+    shift
 
     if [[ ! -f "$input_file" ]]; then
         echo "Error: Given Path $input_file is not a valid file" >&2
@@ -301,7 +164,7 @@ compress() {
     dir="$(dirname "$input_file")"
     filename="$(basename "$input_file")"
 
-    ffmpeg -i "$input_file" -vcodec libx265 -crf 28 "$dir/compressed_$filename"
+    ffmpeg -i "$input_file" "$@" -vcodec libx265 -crf 28 "$dir/compressed_$filename"
 }
 
 video_length() {

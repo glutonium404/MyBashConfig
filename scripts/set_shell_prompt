@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Function to get the current Git branch and status. using it to modify the shell prompt
+parse_git_branch() {
+    # Get the current branch name
+    branch=
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$branch" ]; then
+        # Check for uncommitted changes
+        if [ -n "$(git status --porcelain)" ]; then
+            # Uncommitted changes detected
+            printf "\001\e[0m\e[1;91m\002(%s)\001\e[0m\002 " "$branch"
+        else
+            # Clean working tree
+            printf "\001\e[0m\e[1;92m\002(%s)\001\e[0m\002 " "$branch"
+        fi
+    fi
+}
+
+# sets up prompt appearance
+# shellcheck disable=SC2154
+PS1='${debian_chroot:+($debian_chroot)}\[\033[01;34m\] \W \[\033[00m\]$(parse_git_branch)'

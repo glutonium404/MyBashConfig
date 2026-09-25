@@ -1,11 +1,23 @@
 MY_CONFIG_PATH="$(command cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-alias bat="batcat --paging=never --color=always --style=numbers --line-range=:500"
+# assert MY_CONFIG_PATH is valid
+if [[ ! -d "$MY_CONFIG_PATH" ]]; then
+    echo "Error: [MY_CONFIG_PATH : $MY_CONFIG_PATH] is invalid" >&2
+    return 1
+fi
+
+# command aliases
+alias bat='batcat --paging=never --color=always --style=numbers --line-range=:500'
 alias fzf='fzf --preview ""'
 alias cls='clear && ls;'
 alias clcd='clear && cd'
 alias dir='dir --color=always'
-alias merge_videos="$MY_CONFIG_PATH/scripts/merge_videos/merge_videos.sh"
+
+# script aliases
+alias merge_videos='$MY_CONFIG_PATH/scripts/merge_videos/merge_videos.sh'
+alias mdtopdf='$MY_CONFIG_PATH/scripts/mdtopdf'
+alias repo='$MY_CONFIG_PATH/scripts/repo'
+alias ignore='$MY_CONFIG_PATH/scripts/ignore'
 
 ##########################################
 ######### Aliases for wsl only ###########
@@ -16,6 +28,8 @@ fi
 source "$MY_CONFIG_PATH/func.sh"
 source "$MY_CONFIG_PATH/keybind.sh"
 source "$MY_CONFIG_PATH/env.sh"
+source "$MY_CONFIG_PATH/scripts/set_shell_prompt"
+source "$MY_CONFIG_PATH/scripts/cddr"
 
 export MY_CONFIG_PATH
 export EDITOR=nvim

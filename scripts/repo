@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function get_selected_repos {
+    local -n res_array=$1
+    mapfile -t res_array < <(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | fzf -m)
+
+    if (( ${#res_array[@]} == 0 )); then
+        echo "No repository selected." >&2
+        return 1
+    fi
+}
+
+function clone_repo {
+    local repos=()
+    get_selected_repos repos || return 1
+
+    for repo in "${repos[@]}"; do
+        [[ -n "$repo" ]] && gh repo clone "$repo"
+    done
+}
+
+function open_remote_repo {
+    local repos=()
+    get_selected_repos repos || return 1
+
+    for repo in "${repos[@]}"; do
+        [[ -n "$repo" ]] && xdg-open "https://github.com/$repo"
+    done
+}
+
+function open_local_repo {
+    local path="${1:-.}"
+    local url
+
+    url=$(git -C "$path" remote get-url origin 2>/dev/null) || true
+
+    if [[ -z "$url" ]]; then
+        echo "Error: Directory '$path' is invalid or lacks a remote URL." >&2
+        return 1
+    fi
+
+    # Convert SSH URLs to HTTPS format
+    url=$(echo "$url" | sed -E 's|^git@([^:]+):|https://\1/|; s|\.git$||')
+    xdg-open "$url"
+}
+
+function print_help {
+    cat << EOF
+USAGE: script_name [OPTION] [PATH]
+
+DESCRIPTION:
+  A utility to manage and open GitHub repositories via CLI.
+
+OPTIONS:
+  -h, --help        Show this help message and exit.
+  -c, --clone       Select repositories via fzf and clone them locally.
+  -o, --open        Select repositories via fzf and open in browser.
+  [PATH]            Open the remote URL of the local repo at the path.
+                    Defaults to current directory if no path is provided.
+EOF
+}
+
+if [[ "$#" -eq 0 ]]; then
+    open_local_repo
+    exit 0
+fi
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -c|--clone)
+            clone_repo
+            shift
+            ;;
+        -o|--open)
+            open_remote_repo
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit
+            ;;
+        -*)
+            echo "Invalid flag: $1" >&2
+            print_help
+            exit 1
+            ;;
+        *)
+            open_local_repo "$1"
+            shift
+            ;;
+    esac
+done
