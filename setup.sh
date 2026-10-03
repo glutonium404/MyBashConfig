@@ -2,7 +2,7 @@
 
 # #!/usr/bin/env bash
 
-# local dir_name=".my_config"
+dir_name=".my_config"
 
 # # ==============================================================================
 # # 1. Unofficial Bash Strict Mode & Error Handling
@@ -85,7 +85,7 @@
 # # ==============================================================================
 # log_info "Cloning shell custom repo..."
 # if [ ! -d "$HOME/$dir_name" ]; then
-#     git clone https://github.com/glutonium69/my_shell_configs "$HOME/$dir_name"
+#     git clone https://github.com/glutonium69/MyBashConfig "$HOME/$dir_name"
 # else
 #     log_warn "Shell config repo already exists. Pulling latest..."
 #     git -C "$HOME/$dir_name" pull
@@ -187,7 +187,7 @@ nvm install node
 echo "========================="
 echo "cloning shell custom repo"
 echo "========================="
-git clone https://github.com/glutonium69/my_shell_configs "$HOME/$dir_name"
+git clone https://github.com/glutonium69/MyBashConfig "$HOME/$dir_name"
 
 echo "====================="
 echo "cloning neovim config"
