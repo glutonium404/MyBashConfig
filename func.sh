@@ -39,6 +39,9 @@ run() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
     local save_dir="$cache_dir/my_dir"
     local save_file="$save_dir/my_variables.sh"
+    local verbose=false
+    local previous=false
+    local new=false
 
     # 1. Load saved state if it exists so -p works in new sessions
     if [[ -f "$save_file" ]]; then
@@ -46,52 +49,68 @@ run() {
         source "$save_file"
     fi
 
-    case "$1" in
-        -p)
-            if [[ -z "$PREVIOUSLY_RAN_CPP" ]]; then
-                echo "No previous file recorded."
-            elif [[ ! -f "$PREVIOUSLY_RAN_CPP" ]]; then
-                echo "Previous file no longer exists: $PREVIOUSLY_RAN_CPP"
-            else
-                echo -e "Running: $PREVIOUSLY_RAN_CPP\n\n"
-                g++ "$PREVIOUSLY_RAN_CPP" && ./a.out && rm a.out
-            fi
-            ;;
-        "")
-            # 2. Check for fd or fd
-            local fd_cmd
-            fd_cmd=$(command -v fd || command -v fdfind)
-
-            if [[ -z "$fd_cmd" ]]; then
-                echo "Error: fd or fd is not installed."
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            -p|--previous)
+                previous=true
+                shift
+                ;;
+            "")
+                new=true
+                shift
+                ;;
+            *)
+                echo "Usage: run [-p|--previous] [-v|--verbose]"
                 return 1
-            fi
+                ;;
+        esac
+    done
 
-            local file
-            file=$($fd_cmd . -e cpp -e c | fzf)
+    if $previous; then
+        if [[ -z "$PREVIOUSLY_RAN_CPP" ]]; then
+            echo "No previous file recorded."
+        elif [[ ! -f "$PREVIOUSLY_RAN_CPP" ]]; then
+            echo "Previous file no longer exists: $PREVIOUSLY_RAN_CPP"
+        else
+            $verbose && echo -e "Running: $PREVIOUSLY_RAN_CPP\n\n"
+            g++ "$PREVIOUSLY_RAN_CPP" && ./a.out && rm a.out
+        fi
+    fi
 
-            if [[ -z "$file" ]]; then
-                echo "No file selected."
-                return
-            fi
+    if $new; then
+        # 2. Check for fd or fd
+        local fd_cmd
+        fd_cmd=$(command -v fd || command -v fdfind)
 
-            # 3. Setup directory and save absolute path
-            mkdir -p "$save_dir"
-            local abs_path
-            abs_path=$(realpath "$file")
-
-            echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
-            # shellcheck source=/dev/null
-            source "$save_file"
-
-            echo -e "Running: $abs_path\n\n"
-            g++ "$abs_path" && ./a.out && rm a.out
-            ;;
-        *)
-            echo "Usage: run [-p]"
+        if [[ -z "$fd_cmd" ]]; then
+            echo "Error: fd or fd is not installed."
             return 1
-            ;;
-    esac
+        fi
+
+        local file
+        file=$($fd_cmd . -e cpp -e c | fzf)
+
+        if [[ -z "$file" ]]; then
+            echo "No file selected."
+            return
+        fi
+
+        # 3. Setup directory and save absolute path
+        mkdir -p "$save_dir"
+        local abs_path
+        abs_path=$(realpath "$file")
+
+        echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
+        # shellcheck source=/dev/null
+        source "$save_file"
+
+        $verbose && echo -e "Running: $abs_path\n\n"
+        g++ "$abs_path" && ./a.out && rm a.out
+    fi
 }
 
 bashrc() {
