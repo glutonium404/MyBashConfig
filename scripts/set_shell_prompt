@@ -2,6 +2,11 @@
 
 # Function to get the current Git branch and status. using it to modify the shell prompt
 parse_git_branch() {
+    # Skip checking git branch state if within windows file system which tends to be really slow
+    if [[ "$(realpath .)" =~ ^/mnt ]]; then
+        return 0
+    fi
+
     # Get the current branch name
     branch=
     branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)

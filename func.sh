@@ -41,7 +41,9 @@ run() {
     local save_file="$save_dir/my_variables.sh"
     local verbose=false
     local previous=false
-    local new=false
+    local custom_file
+
+    trap "rm a.out" RETURN
 
     # 1. Load saved state if it exists so -p works in new sessions
     if [[ -f "$save_file" ]]; then
@@ -60,12 +62,12 @@ run() {
                 shift
                 ;;
             "")
-                new=true
+                echo "Usage: run [-p|--previous] [-v|--verbose]"
                 shift
                 ;;
             *)
-                echo "Usage: run [-p|--previous] [-v|--verbose]"
-                return 1
+                custom_file="$1"
+                return 0
                 ;;
         esac
     done
@@ -79,38 +81,43 @@ run() {
             $verbose && echo -e "Running: $PREVIOUSLY_RAN_CPP\n\n"
             g++ "$PREVIOUSLY_RAN_CPP" && ./a.out && rm a.out
         fi
+
+        return
     fi
 
-    if $new; then
-        # 2. Check for fd or fd
-        local fd_cmd
-        fd_cmd=$(command -v fd || command -v fdfind)
-
-        if [[ -z "$fd_cmd" ]]; then
-            echo "Error: fd or fd is not installed."
-            return 1
-        fi
-
-        local file
-        file=$($fd_cmd . -e cpp -e c | fzf)
-
-        if [[ -z "$file" ]]; then
-            echo "No file selected."
-            return
-        fi
-
-        # 3. Setup directory and save absolute path
-        mkdir -p "$save_dir"
-        local abs_path
-        abs_path=$(realpath "$file")
-
-        echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
-        # shellcheck source=/dev/null
-        source "$save_file"
-
-        $verbose && echo -e "Running: $abs_path\n\n"
-        g++ "$abs_path" && ./a.out && rm a.out
+    if [[ -f "$custom_file" ]]; then
+        g++ "$custom_file" && ./a.out && rm a.out
+        return
     fi
+
+    # 2. Check for fd or fd
+    local fd_cmd
+    fd_cmd=$(command -v fd || command -v fdfind)
+
+    if [[ -z "$fd_cmd" ]]; then
+        echo "Error: fd or fd is not installed."
+        return 1
+    fi
+
+    local file
+    file=$($fd_cmd . -e cpp -e c | fzf)
+
+    if [[ -z "$file" ]]; then
+        echo "No file selected."
+        return
+    fi
+
+    # 3. Setup directory and save absolute path
+    mkdir -p "$save_dir"
+    local abs_path
+    abs_path=$(realpath "$file")
+
+    echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
+    # shellcheck source=/dev/null
+    source "$save_file"
+
+    $verbose && echo -e "Running: $abs_path\n\n"
+    g++ "$abs_path" && ./a.out && rm a.out
 }
 
 bashrc() {
@@ -153,8 +160,8 @@ gem() {
     trap 'rm -rf "$temp_file"' EXIT
 
     gemini_beta "$@" > "$temp_file"
-    batcat "$temp_file"
-    cat "$temp_file"
+    echo -e "$(cat "$temp_file")" | batcat
+    echo -e "$(cat "$temp_file")"
 }
 
 compress() {
