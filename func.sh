@@ -43,7 +43,7 @@ run() {
     local previous=false
     local custom_file
 
-    trap "rm a.out" RETURN
+    trap "rm -f a.out" RETURN
 
     # 1. Load saved state if it exists so -p works in new sessions
     if [[ -f "$save_file" ]]; then
@@ -79,14 +79,14 @@ run() {
             echo "Previous file no longer exists: $PREVIOUSLY_RAN_CPP"
         else
             $verbose && echo -e "Running: $PREVIOUSLY_RAN_CPP\n\n"
-            g++ "$PREVIOUSLY_RAN_CPP" && ./a.out && rm a.out
+            g++ "$PREVIOUSLY_RAN_CPP" && ./a.out
         fi
 
         return
     fi
 
     if [[ -f "$custom_file" ]]; then
-        g++ "$custom_file" && ./a.out && rm a.out
+        g++ "$custom_file" && ./a.out
         return
     fi
 
@@ -117,7 +117,7 @@ run() {
     source "$save_file"
 
     $verbose && echo -e "Running: $abs_path\n\n"
-    g++ "$abs_path" && ./a.out && rm a.out
+    g++ "$abs_path" && ./a.out
 }
 
 bashrc() {
