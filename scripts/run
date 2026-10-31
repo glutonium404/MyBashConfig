@@ -72,6 +72,10 @@ while [[ $# -gt 0 ]]; do
             print_help
             exit
             ;;
+        -*)
+            print_help
+            exit
+            ;;
         *)
             run_and_exit "$1"
             ;;
