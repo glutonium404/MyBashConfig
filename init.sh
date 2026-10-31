@@ -18,11 +18,18 @@ alias merge_videos='$MY_CONFIG_PATH/scripts/merge_videos/merge_videos.sh'
 alias mdtopdf='$MY_CONFIG_PATH/scripts/mdtopdf'
 alias repo='$MY_CONFIG_PATH/scripts/repo'
 alias ignore='$MY_CONFIG_PATH/scripts/ignore'
+alias run='$MY_CONFIG_PATH/scripts/run'
 
-##########################################
-######### Aliases for wsl only ###########
+#############################################################
+######### Aliases & Simple functions for wsl only ###########
+#############################################################
 if [ -n "$WSL_DISTRO_NAME" ]; then
-    alias getclipboard='powershell.exe Get-Clipboard'
+    alias getclipboard='powershell.exe -NoProfile Get-Clipboard | tr -d "\r"'
+    function setclipboard {
+        local content;
+        [[ -f "$*" ]] && content="$(cat "$*")" || content="$*";
+        echo -n "$content" | clip.exe
+    }
 fi
 
 source "$MY_CONFIG_PATH/func.sh"

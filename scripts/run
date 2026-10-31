@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+save_dir="$cache_dir/my_dir"
+save_file="$save_dir/my_variables.sh"
+verbose=false
+previous=false
+file=
+
+trap "rm -f a.out" EXIT
+
+if [[ ! -d "$save_dir" ]]; then
+    echo "save directory [$save_dir] does not exist"
+    read -r -p "Do you want to create the directory? [Y/n]: " response
+    response=${response:-y}
+
+    if [[ "$response" =~ [Yy] ]]; then
+        mkdir -p "$save_dir" || exit 1
+        echo "PREVIOUSLY_RAN_CPP=" > "$save_file"
+    else
+        echo "Aborted"
+        exit
+    fi
+fi
+
+if [[ -f "$save_file" ]]; then
+    # shellcheck source=/dev/null
+    source "$save_file"
+fi
+
+function assert {
+    if eval "$1"; then
+        return
+    fi
+    echo "$2" >&2
+    exit 1
+}
+
+function run_and_exit {
+    local abs_path=
+    abs_path=$(realpath "$1")
+
+    echo "PREVIOUSLY_RAN_CPP=\"$abs_path\"" > "$save_file"
+    # shellcheck source=/dev/null
+    source "$save_file"
+
+    if $verbose; then
+        printf 'Running: %s\n\n' "$abs_path"
+    fi
+
+    g++ "$abs_path" && ./a.out
+    exit
+}
+
+function print_help {
+    echo "Usage: run [-p|--previous] [-v|--verbose]"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            verbose=true
+            shift
+            ;;
+        -p|--previous)
+            previous=true
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit
+            ;;
+        *)
+            run_and_exit "$1"
+            ;;
+    esac
+done
+
+if $previous; then
+    assert "[[ -n '$PREVIOUSLY_RAN_CPP' ]]"    "No previous file recorded."
+    assert "[[ -f '$PREVIOUSLY_RAN_CPP' ]]"    "Previous file no longer exists: $PREVIOUSLY_RAN_CPP"
+
+    run_and_exit "$PREVIOUSLY_RAN_CPP"
+fi
+
+fd_cmd=$(command -v fd || command -v fdfind)
+
+assert "[[ -n '$fd_cmd' ]]"    "Error: fd or fdfind not installed."
+
+file="$($fd_cmd . -e cpp -e c | fzf)"
+
+assert "[[ -n '$file' ]]"    "No file selected."
+
+run_and_exit "$file"
