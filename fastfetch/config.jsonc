@@ -5,9 +5,15 @@
     "type": "file",
     "width": 5,
     "color": {
-      "1": "black",
-      "2": "white",
-      "3": "red"
+      "1": "#5d676b",
+      "2": "#e0e0e0",
+      "3": "#f54242",
+      "4": "#5d676b",
+      "5": "#FFC11F",
+      "6": "#FE650D",
+      "7": "#F33C04",
+      "8": "#A10100",
+      "9": "#4f0b02",
     }
   },
   "display": {
@@ -101,7 +107,7 @@
     // },
     {
       "type": "terminal",
-      "key": "╭─ ",
+      "key": "╭─ ",
       "keyColor": "green"
     },
     {
@@ -158,7 +164,7 @@
     "break",
     {
       "type": "custom",
-      "format": "\u001b[1m\u001b[31m󰥚  \u001b[1m\u001b[32m󰥚  \u001b[1m\u001b[33m󰥚  \u001b[1m\u001b[34m󰥚  \u001b[1m\u001b[35m󰥚  \u001b[1m\u001b[36m󰥚  \u001b[1m\u001b[37m󰥚  \u001b[1m\u001b[30m󰥚        \u001b[1m\u001b[91m󰥚  \u001b[1m\u001b[92m󰥚  \u001b[1m\u001b[93m󰥚  \u001b[1m\u001b[94m󰥚  \u001b[1m\u001b[95m󰥚  \u001b[1m\u001b[96m󰥚  \u001b[1m\u001b[97m󰥚  \u001b[1m\u001b[90m󰥚"
+      "format": "\u001b[1m\u001b[31m󰥚  \u001b[1m\u001b[32m󰥚  \u001b[1m\u001b[33m󰥚  \u001b[1m\u001b[34m󰥚  \u001b[1m\u001b[35m󰥚  \u001b[1m\u001b[36m󰥚  \u001b[1m\u001b[37m󰥚  \u001b[1m\u001b[30m󰥚        \u001b[1m\u001b[91m󰥚  \u001b[1m\u001b[92m󰥚  \u001b[1m\u001b[93m󰥚  \u001b[1m\u001b[94m󰥚  \u001b[1m\u001b[95m󰥚  \u001b[1m\u001b[96m󰥚  \u001b[1m\u001b[97m󰥚  \u001b[1m\u001b[90m󰥚 "
     },
     "break",
   ]
